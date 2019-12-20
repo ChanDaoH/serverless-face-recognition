@@ -1,0 +1,60 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  face-recognition:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Policies:
+        - Version: '1'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'oss:ListObjects'
+                - 'oss:GetObject'
+                - 'oss:PutObject'
+                - 'oss:DeleteObject'
+                - 'fnf:*'
+              Resource: '*'
+    listObjects:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 128
+        CodeUri: functions/listobjects
+        EnvironmentVariables:
+          OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+    detectFaces:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 512
+        CodeUri: functions/detectfaces
+        EnvironmentVariables:
+          OSS_ENDPOINT: 'https://oss-cn-hangzhou-internal.aliyuncs.com'
+    timer:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 512
+        CodeUri: functions/timer
+      Events:
+        timeTrigger:
+          Type: Timer
+          Properties:
+            CronExpression: '0 * * * * *'
+            Enable: true 
+            # replace YOUR_BUCKET_NAME to your oss bucket name
+            Payload: '{"flowName": "oss-batch-process", "input": "{\"bucket\": \"YOUR_BUCKET_NAME\",\"prefix\":\"\"}"}'
+  oss-batch-process:
+    Type: 'Aliyun::Serverless::Flow'
+    Properties:
+      Description: batch process flow
+      DefinitionUri: flows/index.flow.yml
+      Policies:
+        - AliyunFCInvocationAccess
